@@ -256,46 +256,53 @@ Backbone.Form = Backbone.View.extend({
 Backbone.Model = Backbone.Model.extend({
 
 	// 
-	validateOne: function (field,value) {
+	validateOne: function (field, value) {
 		var rule = this.rules[field];
 		if (!rule || _.isEmpty(rule)) {
 			return null;
 		}
-		var result = this.runValidationFn(this.attributes,rule,field,value);
+		var result = this.runValidationFn(this.attributes, rule, field, value);
 		return result;
 	},
 	
 	// Validate a field for one or more rules
-	runValidationFn: function (attributes,rule,fieldName,value) {
+	runValidationFn: function (attributes, rule, fieldName, value) {
 		// Parse rule name, get options if they exist
 		// If this is a list of rules, evaluate each rule
+		self = this;
 		if (_.isArray(rule)) {
 			var errors = [];
-			for (var i=0;i<rule.length;i++) {
-				var error=this.runValidationFn(attributes,rule[i],fieldName,value);
-				if (error)
-					errors.push(error);
-			}
+
+			_.each(rule, function(element, i) {
+				var error = self.runValidationFn(attributes, rule[i], fieldName, value);
+				error && errors.push(error);
+			})
+
 			return (errors.length > 0) ? errors : false;
 		}
+
 		// Evaluate an individual rule
 		else {
-			var ruleName,options={};
+			var ruleName, options = {};
+
 			if (_.isString(rule)) {
-				ruleName=rule;
-			}
-			else {
+				ruleName = rule;
+			} else {
 				ruleName = rule.name;
-				options = _.extend(options,rule);
+				options  = _.extend(options, rule);
 			}
+
 			// Add all new values to options
-			options = _.extend(options,{
+			options = _.extend(options, {
 				newValues: attributes
 			});
-			if (!this.validators[ruleName])
+
+			// If rule name is not in the validators object, throw an error.
+			// Otherwise run validators' method with that same rule name.
+			if (!this.validators[ruleName]) {
 				throw new Error ("Unknown validation function ("+ruleName+")!");
-			else {
-				return this.validators[ruleName](fieldName,this,value,options);
+			} else {
+				return this.validators[ruleName](fieldName, this, value, options);
 			}
 		}
 	},
@@ -304,44 +311,48 @@ Backbone.Model = Backbone.Model.extend({
 	validators: {
 		// Error map
 		errors: {
-			required: {
-				message: 'That field is required.'
+				required: {
+					message: 'That field is required.'
 			},
-			email: {
-				message: 'Invalid email.'
+				email: {
+					message: 'Invalid email.'
 			},
-			url: {
-				message: 'Invalid URL.'
+				url: {
+					message: 'Invalid URL.'
 			},
-			naturalNumber: {
-				message: 'Invalid amount.'
+				naturalNumber: {
+					message: 'Invalid amount.'
 			},
-			pattern: {
-				message: 'pattern'
+				pattern: {
+					message: 'pattern'
 			},
-			min: {
-				message: 'Too small.'
+				min: {
+					message: 'Too small.'
 			},
-			max: {
-				message: 'Too big.'
+				max: {
+					message: 'Too big.'
 			},
-			minlength: {
-				message: 'Too short.'
+				minlength: {
+					message: 'Too short.'
 			},
-			maxlength: {
-				message: 'Too long.'
+				maxlength: {
+					message: 'Too long.'
 			},
-			minCount: {
-				message: 'Too few.'
+				minCount: {
+					message: 'Too few.'
 			},
-			maxCount: {
-				message: 'Too many.'
+				maxCount: {
+					message: 'Too many.'
 			}
 		},
-		custom : function(attributeName, model, valueToSet,options) {
+
+		// Override this method for a custome error hanlder
+		custom : function(attributeName, model, valueToSet, options) {
 			return model[options.methodName](attributeName, valueToSet);
 		},
-		required : function(attributeName, model, valueToSet,options) {
+
+
+		required : function(attributeName, model, valueToSet, options) {
 			var currentValue = model.get(attributeName);
 			var isNotAlreadySet = _.isUndefined(currentValue);
 			var isNotBeingSet = _.isUndefined(valueToSet);
@@ -350,6 +361,7 @@ Backbone.Model = Backbone.Model.extend({
 			}
 			return false;
 		},
+
 		email : function(attributeName, model, valueToSet) {
 			var emailRegex = new RegExp("[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?");
 
@@ -357,20 +369,23 @@ Backbone.Model = Backbone.Model.extend({
 				return this.errors.email;
 			} else return false;
 		},
+
 		url : function(attributeName, model, valueToSet) {
 			var urlRegex = /^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i;
 			if (_.isString(valueToSet) && !valueToSet.match(urlRegex)) {
 				return this.errors.url;
 			} else return false;
 		},
-		naturalNumber : function (attributeName, model, valueToSet,options) {
+
+		naturalNumber : function (attributeName, model, valueToSet, options) {
 			var naturalRegex = /^(0|([1-9][0-9]*))$/;
 			if (!valueToSet.match(naturalRegex)) {
 				
 				return this.errors.naturalNumber;
 			} else return false;
 		},
-		pattern : function(attributeName, model, valueToSet,options) {
+
+		pattern : function(attributeName, model, valueToSet, options) {
 			if (_.isString(valueToSet)) {
 				if (valueToSet.match(options.pattern)) {
 
@@ -385,25 +400,29 @@ Backbone.Model = Backbone.Model.extend({
 				}
 			} else return false;
 		},
-		min : function(attributeName, model, valueToSet,options) {
+
+		min : function(attributeName, model, valueToSet, options) {
 			valueToSet = +valueToSet;
 			if (valueToSet < options.min) {
 				return _.extend(this.errors.min,options);
 			} else return false;
 		},
-		max : function(attributeName, model, valueToSet,options) {
+
+		max : function(attributeName, model, valueToSet, options) {
 			valueToSet = +valueToSet;
 			if (valueToSet > options.max) {
 				return _.extend(this.errors.max,options);
 			} else return false;
 		},
-		minlength : function( attributeName, model, valueToSet,options) {
+
+		minlength : function( attributeName, model, valueToSet, options) {
 			if (_.isString(valueToSet)) {
 				if (valueToSet.length < options.minlength) return this.errors.minlength;
 			}
 			return false;
 		},
-		maxlength : function( attributeName, model, valueToSet,options) {
+
+		maxlength : function( attributeName, model, valueToSet, options) {
 			if (_.isString(valueToSet)) {
 				if (valueToSet.length > options.maxlength) return this.errors.maxlength;
 			}
@@ -411,35 +430,3 @@ Backbone.Model = Backbone.Model.extend({
 		}
 	}
 });
-
-
-
-// Bonus?
-// This should probably be put somewhere else,
-// but it's included because it's userful
-// Adds a max and minimum to backbone collections
-Backbone.Collection = Backbone.Collection.extend({
-	max: 100,
-	min: 0,
-	// Add without overflowing
-	safeAdd: function (o) {
-		if (this.length < this.max) {
-			this.add(o);
-			if (this.length==this.max && this.onFull) this.onFull();
-			return true;
-		} else return false;
-	},
-	// Remove without overflowing
-	safeRemove: function (o) {
-		if (o && o.length && this.length-o.length >= this.min) {
-			this.remove(o);
-			return true;
-		}
-		else if (o && this.length-1 >= this.min) {
-			this.remove(o)
-			return true;
-		}
-		else
-			return false;
-	}
-})
